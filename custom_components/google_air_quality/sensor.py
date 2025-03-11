@@ -1,11 +1,11 @@
-from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.typing import HomeAssistantType, ConfigType
-from datetime import timedelta
-import requests
+import aiohttp
+import asyncio
 import logging
+from datetime import timedelta
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import Entity
+from homeassistant.config_entries import ConfigEntry
 from .const import DOMAIN, API_URL
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,18 +36,25 @@ class GoogleAirQualityCoordinator:
         self.data = await self._async_update_data()
 
     async def _async_update_data(self):
-        """Fetch data from the API."""
+        """Fetch data from the API asynchronously."""
         try:
-            response = requests.post(API_URL, json={
-                "location": {
-                    "latitude": self.latitude,
-                    "longitude": self.longitude
-                }
-            }, params={"key": self.api_key}, headers={"Content-Type": "application/json"})
-            
-            response.raise_for_status()
-            _LOGGER.debug("API Response: %s", response.json())
-            return response.json()
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{API_URL}?key={self.api_key}",
+                    json={
+                        "location": {
+                            "latitude": self.latitude,
+                            "longitude": self.longitude
+                        }
+                    },
+                    headers={"Content-Type": "application/json"}
+                ) as response:
+                    if response.status != 200:
+                        _LOGGER.error("API returned status code %s", response.status)
+                        return {}
+                    data = await response.json()
+                    _LOGGER.debug("API Response: %s", data)
+                    return data
         except Exception as err:
             _LOGGER.error("Error fetching data: %s", err)
             return {}
