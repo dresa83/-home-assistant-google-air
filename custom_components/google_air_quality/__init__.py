@@ -1,12 +1,9 @@
-import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.typing import ConfigType
-from .const import DOMAIN
 
-_LOGGER = logging.getLogger(__name__)
+DOMAIN = "google_air_quality"
 
-async def async_setup(hass: HomeAssistant, config: ConfigType):
+async def async_setup(hass: HomeAssistant, config: dict):
     """Set up the Google Air Quality component."""
     hass.data.setdefault(DOMAIN, {})
     return True

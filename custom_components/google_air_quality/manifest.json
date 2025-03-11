@@ -1,11 +1,9 @@
 {
   "domain": "google_air_quality",
   "name": "Google Air Quality",
-  "version": "1.0.12",
-  "documentation": "https://github.com/dresa83/-home-assistant-google-air",
+  "version": "1.0.0",
+  "documentation": "https://github.com/yourusername/google_air_quality",
   "dependencies": [],
   "codeowners": ["@dresa83"],
-  "requirements": ["requests"],
-  "config_flow": true
+  "requirements": ["aiohttp"]
 }
-
