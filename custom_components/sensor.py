@@ -8,7 +8,7 @@ from homeassistant.helpers.update_coordinator import (
 from homeassistant.core import HomeAssistant
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
-from .const import DOMAIN, API_URL
+from .google_air_quality.const import DOMAIN, API_URL
 
 _LOGGER = logging.getLogger(__name__)
 

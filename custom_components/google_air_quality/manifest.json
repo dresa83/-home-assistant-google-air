@@ -6,4 +6,5 @@
   "dependencies": [],
   "codeowners": ["@dresa83"],
   "requirements": ["aiohttp"]
+  "config_flow": true
 }
