@@ -5,7 +5,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import HomeAssistantType, ConfigType
 from datetime import timedelta
 import requests
+import logging
 from .const import DOMAIN, API_URL
+
+_LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up the Google Air Quality sensor based on config entry."""
@@ -15,6 +18,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         entry.data["latitude"],
         entry.data["longitude"],
     )
+    await coordinator.async_request_refresh()
     async_add_entities([GoogleAirQualitySensor(coordinator)], True)
 
 class GoogleAirQualityCoordinator:
@@ -34,15 +38,19 @@ class GoogleAirQualityCoordinator:
     async def _async_update_data(self):
         """Fetch data from the API."""
         try:
-            response = requests.get(API_URL, params={
-                "key": self.api_key,
-                "lat": self.latitude,
-                "lon": self.longitude
-            })
+            response = requests.post(API_URL, json={
+                "location": {
+                    "latitude": self.latitude,
+                    "longitude": self.longitude
+                }
+            }, params={"key": self.api_key}, headers={"Content-Type": "application/json"})
+            
             response.raise_for_status()
+            _LOGGER.debug("API Response: %s", response.json())
             return response.json()
         except Exception as err:
-            raise Exception(f"Error fetching data: {err}")
+            _LOGGER.error("Error fetching data: %s", err)
+            return {}
 
 class GoogleAirQualitySensor(CoordinatorEntity, Entity):
     """Representation of a Google Air Quality Sensor."""
@@ -56,14 +64,20 @@ class GoogleAirQualitySensor(CoordinatorEntity, Entity):
     @property
     def state(self):
         """Return the current AQI."""
-        return self.coordinator.data.get("aqi")
+        indexes = self.coordinator.data.get("indexes", [])
+        if indexes:
+            return indexes[0].get("aqi")
+        return None
 
     @property
     def extra_state_attributes(self):
         """Return additional attributes."""
-        return {
-            "pm2_5": self.coordinator.data.get("pm2_5"),
-            "pm10": self.coordinator.data.get("pm10"),
-            "co": self.coordinator.data.get("co"),
-            "no2": self.coordinator.data.get("no2"),
-        }
+        indexes = self.coordinator.data.get("indexes", [])
+        if indexes:
+            return {
+                "category": indexes[0].get("category"),
+                "dominant_pollutant": indexes[0].get("dominantPollutant"),
+                "aqi_display": indexes[0].get("aqiDisplay"),
+                "region_code": self.coordinator.data.get("regionCode")
+            }
+        return {}
