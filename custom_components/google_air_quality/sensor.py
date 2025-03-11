@@ -3,12 +3,46 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import HomeAssistantType, ConfigType
-from .const import DOMAIN
+from datetime import timedelta
+import requests
+from .const import DOMAIN, API_URL
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up the Google Air Quality sensor based on config entry."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = hass.data[DOMAIN][entry.entry_id] = GoogleAirQualityCoordinator(
+        hass,
+        entry.data["api_key"],
+        entry.data["latitude"],
+        entry.data["longitude"],
+    )
     async_add_entities([GoogleAirQualitySensor(coordinator)], True)
+
+class GoogleAirQualityCoordinator:
+    def __init__(self, hass, api_key, latitude, longitude):
+        """Initialize the coordinator."""
+        self.hass = hass
+        self.api_key = api_key
+        self.latitude = latitude
+        self.longitude = longitude
+        self.data = {}
+        self.update_interval = timedelta(minutes=30)
+
+    async def async_request_refresh(self):
+        """Refresh the data from API."""
+        self.data = await self._async_update_data()
+
+    async def _async_update_data(self):
+        """Fetch data from the API."""
+        try:
+            response = requests.get(API_URL, params={
+                "key": self.api_key,
+                "lat": self.latitude,
+                "lon": self.longitude
+            })
+            response.raise_for_status()
+            return response.json()
+        except Exception as err:
+            raise Exception(f"Error fetching data: {err}")
 
 class GoogleAirQualitySensor(CoordinatorEntity, Entity):
     """Representation of a Google Air Quality Sensor."""

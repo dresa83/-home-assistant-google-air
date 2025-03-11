@@ -10,12 +10,18 @@ class GoogleAirQualityConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
-            return self.async_create_entry(title="Google Air Quality", data=user_input)
+            try:
+                # Convert commas to dots for latitude and longitude
+                user_input[CONF_LATITUDE] = float(str(user_input[CONF_LATITUDE]).replace(",", "."))
+                user_input[CONF_LONGITUDE] = float(str(user_input[CONF_LONGITUDE]).replace(",", "."))
+                return self.async_create_entry(title="Google Air Quality", data=user_input)
+            except ValueError:
+                errors["base"] = "invalid_coordinates"
 
         data_schema = vol.Schema({
             vol.Required(CONF_API_KEY): str,
-            vol.Required(CONF_LATITUDE): float,
-            vol.Required(CONF_LONGITUDE): float
+            vol.Required(CONF_LATITUDE): str,
+            vol.Required(CONF_LONGITUDE): str
         })
 
         return self.async_show_form(
