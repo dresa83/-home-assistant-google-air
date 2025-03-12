@@ -14,29 +14,32 @@ API_URL = "https://airquality.googleapis.com/v1/currentConditions:lookup"
 SCAN_INTERVAL = timedelta(minutes=30)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
-    """Set up the Google Air Quality integration with services."""
+    """Set up Google Air Quality sensors."""
     api_key = entry.data.get("api_key")
     latitude = entry.data.get("latitude")
     longitude = entry.data.get("longitude")
+    language = entry.data.get("language", "en")
 
-    sensor_manager = AirQualitySensorManager(hass, api_key, latitude, longitude, async_add_entities)
-    
-    # Register Service
-    hass.services.async_register(DOMAIN, "get_data", sensor_manager.manual_update)
+    sensor_manager = AirQualitySensorManager(hass, api_key, latitude, longitude, language, async_add_entities)
+    hass.data[DOMAIN]["sensor_manager"] = sensor_manager
 
-    # Schedule automatic updates
+    # Perform initial fetch
+    await sensor_manager.auto_update()
+
+    # Automatic updates
     async_track_time_interval(hass, sensor_manager.auto_update, SCAN_INTERVAL)
 
     return True
 
 class AirQualitySensorManager:
-    """Manager to handle sensor creation and updates."""
+    """Manager for creating and updating air quality sensors."""
 
-    def __init__(self, hass, api_key, latitude, longitude, async_add_entities):
+    def __init__(self, hass, api_key, latitude, longitude, language, async_add_entities):
         self.hass = hass
         self.api_key = api_key
         self.latitude = latitude
         self.longitude = longitude
+        self.language = language
         self.async_add_entities = async_add_entities
         self.sensors = {}
 
@@ -55,7 +58,7 @@ class AirQualitySensorManager:
                 "LOCAL_AQI",
                 "POLLUTANT_ADDITIONAL_INFO"
             ],
-            "languageCode": "en"
+            "languageCode": self.language
         }
         headers = {"Content-Type": "application/json"}
 
@@ -66,17 +69,12 @@ class AirQualitySensorManager:
                         _LOGGER.error(f"API Error: HTTP {response.status}")
                         return None
                     return await response.json()
-
             except aiohttp.ClientError as e:
                 _LOGGER.error(f"API Client Error: {e}")
                 return None
 
     async def auto_update(self, *_):
-        """Automatically update data at intervals."""
-        await self._update_sensors()
-
-    async def manual_update(self, call: ServiceCall):
-        """Manually update sensors via service call."""
+        """Automatically update data."""
         await self._update_sensors()
 
     async def _update_sensors(self):
@@ -88,21 +86,14 @@ class AirQualitySensorManager:
         indexes = data.get("indexes", [{}])[0]
         pollutants = {pollutant["code"]: pollutant for pollutant in data.get("pollutants", [])}
 
-        # Update AQI sensor
         await self._create_or_update_sensor("AQI", indexes.get("aqi", "Unknown"))
 
-        # Pollutants Sensors
         for code, pollutant in pollutants.items():
             value = pollutant.get("concentration", {}).get("value", "Unknown")
             await self._create_or_update_sensor(code.upper(), value)
 
-        # Health Recommendations Sensors
-        recommendations = data.get("healthRecommendations", {})
-        for group, recommendation in recommendations.items():
-            await self._create_or_update_sensor(f"recommendation_{group}", recommendation)
-
     async def _create_or_update_sensor(self, name, state):
-        """Create a new sensor if it doesn't exist or update the existing one."""
+        """Create or update sensor."""
         if name in self.sensors:
             self.sensors[name].update_state(state)
         else:
@@ -130,11 +121,6 @@ class GoogleAirQualitySensor(Entity):
         return f"google_air_quality_{self._name.lower()}"
 
     def update_state(self, new_state):
-        """Update the state and notify Home Assistant."""
+        """Update state."""
         self._state = new_state
         self.async_schedule_update_ha_state()
-
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload the service when the integration is removed."""
-    hass.services.async_remove(DOMAIN, "get_data")
-    return True
