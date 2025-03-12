@@ -2,6 +2,9 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 import aiohttp
+import logging
+
+_LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "google_air_quality"
 API_URL = "https://airquality.googleapis.com/v1/currentConditions:lookup"
@@ -37,28 +40,37 @@ class GoogleAirQualitySensor(Entity):
 
     async def async_update(self):
         """Fetch new data from the API."""
-        params = {
-            "location": f"{self._latitude},{self._longitude}",
-            "key": self._api_key
+        url = f"{API_URL}?key={self._api_key}"
+        payload = {
+            "location": {
+                "latitude": self._latitude,
+                "longitude": self._longitude
+            }
         }
+        headers = {"Content-Type": "application/json"}
+
         async with aiohttp.ClientSession() as session:
             try:
-                async with session.get(API_URL, params=params) as response:
+                async with session.post(url, json=payload, headers=headers) as response:
                     if response.status != 200:
                         self._state = "Error"
                         self._attributes = {"error": f"HTTP {response.status}"}
+                        _LOGGER.error(f"API Error: HTTP {response.status}")
                         return
 
                     data = await response.json()
-                    self._state = data.get("index", {}).get("aqi", "Unknown")
+                    _LOGGER.debug(f"API Response: {data}")
+
+                    # Parse the response
+                    indexes = data.get("indexes", [{}])[0]
+                    self._state = indexes.get("aqi", "Unknown")
                     self._attributes = {
-                        "pm2_5": data.get("pollutants", {}).get("pm2_5", {}).get("concentration", "Unknown"),
-                        "pm10": data.get("pollutants", {}).get("pm10", {}).get("concentration", "Unknown"),
-                        "co": data.get("pollutants", {}).get("co", {}).get("concentration", "Unknown"),
-                        "ozone": data.get("pollutants", {}).get("o3", {}).get("concentration", "Unknown"),
-                        "no2": data.get("pollutants", {}).get("no2", {}).get("concentration", "Unknown"),
-                        "health_recommendations": data.get("health_recommendations", "None")
+                        "category": indexes.get("category", "Unknown"),
+                        "dominant_pollutant": indexes.get("dominantPollutant", "Unknown"),
+                        "region_code": data.get("regionCode", "Unknown"),
+                        "date_time": data.get("dateTime", "Unknown")
                     }
             except aiohttp.ClientError as e:
                 self._state = "Error"
                 self._attributes = {"error": str(e)}
+                _LOGGER.error(f"API Client Error: {e}")
