@@ -73,9 +73,11 @@ class GoogleAirQualitySensor(Entity):
                         return
 
                     data = await response.json()
-                    _LOGGER.debug(f"API Response: {data}")
+                    _LOGGER.debug(f"Full API Response: {data}")  # Log the full response for debugging
 
                     indexes = data.get("indexes", [{}])[0]
+                    pollutants = data.get("pollutants", {})
+
                     self._state = indexes.get("aqi", "Unknown")
                     self._attributes = {
                         "aqi_display": indexes.get("aqiDisplay", "Unknown"),
@@ -83,13 +85,10 @@ class GoogleAirQualitySensor(Entity):
                         "dominant_pollutant": indexes.get("dominantPollutant", "Unknown"),
                         "region_code": data.get("regionCode", "Unknown"),
                         "date_time": data.get("dateTime", "Unknown"),
-                        "pm2_5": data.get("pollutants", {}).get("pm2_5", {}).get("concentration", "Unknown"),
-                        "pm10": data.get("pollutants", {}).get("pm10", {}).get("concentration", "Unknown"),
-                        "co": data.get("pollutants", {}).get("co", {}).get("concentration", "Unknown"),
-                        "ozone": data.get("pollutants", {}).get("o3", {}).get("concentration", "Unknown"),
-                        "no2": data.get("pollutants", {}).get("no2", {}).get("concentration", "Unknown"),
+                        "pollutants_raw": pollutants,  # Log raw pollutants for analysis
                         "health_recommendations": data.get("health_recommendations", "None")
                     }
+
             except aiohttp.ClientError as e:
                 self._state = "Error"
                 self._attributes = {"error": str(e)}
