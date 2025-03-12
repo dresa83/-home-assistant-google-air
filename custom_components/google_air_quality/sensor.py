@@ -1,6 +1,7 @@
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.entity import Entity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_time_interval
 import aiohttp
 import logging
@@ -10,21 +11,42 @@ _LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "google_air_quality"
 API_URL = "https://airquality.googleapis.com/v1/currentConditions:lookup"
+SCAN_INTERVAL = timedelta(minutes=30)
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
-    """Set up Google Air Quality as a service with persistent sensors."""
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
+    """Set up the Google Air Quality integration with services."""
     api_key = entry.data.get("api_key")
     latitude = entry.data.get("latitude")
     longitude = entry.data.get("longitude")
-    sensors = {}
 
-    async def fetch_air_quality():
-        """Fetch air quality data and update sensors."""
+    sensor_manager = AirQualitySensorManager(hass, api_key, latitude, longitude, async_add_entities)
+    
+    # Register Service
+    hass.services.async_register(DOMAIN, "get_data", sensor_manager.manual_update)
+
+    # Schedule automatic updates
+    async_track_time_interval(hass, sensor_manager.auto_update, SCAN_INTERVAL)
+
+    return True
+
+class AirQualitySensorManager:
+    """Manager to handle sensor creation and updates."""
+
+    def __init__(self, hass, api_key, latitude, longitude, async_add_entities):
+        self.hass = hass
+        self.api_key = api_key
+        self.latitude = latitude
+        self.longitude = longitude
+        self.async_add_entities = async_add_entities
+        self.sensors = {}
+
+    async def fetch_air_quality_data(self):
+        """Fetch data from the API."""
         payload = {
             "universalAqi": True,
             "location": {
-                "latitude": latitude,
-                "longitude": longitude
+                "latitude": self.latitude,
+                "longitude": self.longitude
             },
             "extraComputations": [
                 "HEALTH_RECOMMENDATIONS",
@@ -39,60 +61,61 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
         async with aiohttp.ClientSession() as session:
             try:
-                async with session.post(f"{API_URL}?key={api_key}", json=payload, headers=headers) as response:
+                async with session.post(f"{API_URL}?key={self.api_key}", json=payload, headers=headers) as response:
                     if response.status != 200:
                         _LOGGER.error(f"API Error: HTTP {response.status}")
-                        return
-                    data = await response.json()
-                    _LOGGER.debug(f"API Response: {data}")
-
-                    indexes = data.get("indexes", [{}])[0]
-                    pollutants = {pollutant["code"]: pollutant for pollutant in data.get("pollutants", [])}
-
-                    # Update or create AQI sensor
-                    if "AQI" not in sensors:
-                        sensors["AQI"] = GoogleAirQualitySensor("AQI")
-                        hass.helpers.entity_platform.async_add_entities([sensors["AQI"]])
-                    sensors["AQI"].update_state(indexes.get("aqi", "Unknown"))
-
-                    # Update or create pollutant sensors
-                    for code, pollutant in pollutants.items():
-                        sensor_name = code.upper()
-                        if sensor_name not in sensors:
-                            sensors[sensor_name] = GoogleAirQualitySensor(sensor_name)
-                            hass.helpers.entity_platform.async_add_entities([sensors[sensor_name]])
-                        sensors[sensor_name].update_state(pollutant.get("concentration", {}).get("value", "Unknown"))
-
-                    # Update or create health recommendation sensors
-                    recommendations = data.get("healthRecommendations", {})
-                    for group, recommendation in recommendations.items():
-                        sensor_name = f"recommendation_{group}"
-                        if sensor_name not in sensors:
-                            sensors[sensor_name] = GoogleAirQualitySensor(sensor_name)
-                            hass.helpers.entity_platform.async_add_entities([sensors[sensor_name]])
-                        sensors[sensor_name].update_state(recommendation)
+                        return None
+                    return await response.json()
 
             except aiohttp.ClientError as e:
                 _LOGGER.error(f"API Client Error: {e}")
+                return None
 
-    async def handle_get_data(call: ServiceCall):
-        """Handle manual service call to update air quality data."""
-        await fetch_air_quality()
+    async def auto_update(self, *_):
+        """Automatically update data at intervals."""
+        await self._update_sensors()
 
-    # Register the service
-    hass.services.async_register(DOMAIN, "get_data", handle_get_data)
+    async def manual_update(self, call: ServiceCall):
+        """Manually update sensors via service call."""
+        await self._update_sensors()
 
-    # Schedule automatic updates every 30 minutes
-    async_track_time_interval(hass, fetch_air_quality, timedelta(minutes=30))
+    async def _update_sensors(self):
+        """Fetch data and update or create sensors."""
+        data = await self.fetch_air_quality_data()
+        if not data:
+            return
 
-    return True
+        indexes = data.get("indexes", [{}])[0]
+        pollutants = {pollutant["code"]: pollutant for pollutant in data.get("pollutants", [])}
+
+        # Update AQI sensor
+        await self._create_or_update_sensor("AQI", indexes.get("aqi", "Unknown"))
+
+        # Pollutants Sensors
+        for code, pollutant in pollutants.items():
+            value = pollutant.get("concentration", {}).get("value", "Unknown")
+            await self._create_or_update_sensor(code.upper(), value)
+
+        # Health Recommendations Sensors
+        recommendations = data.get("healthRecommendations", {})
+        for group, recommendation in recommendations.items():
+            await self._create_or_update_sensor(f"recommendation_{group}", recommendation)
+
+    async def _create_or_update_sensor(self, name, state):
+        """Create a new sensor if it doesn't exist or update the existing one."""
+        if name in self.sensors:
+            self.sensors[name].update_state(state)
+        else:
+            sensor = GoogleAirQualitySensor(name, state)
+            self.sensors[name] = sensor
+            self.async_add_entities([sensor])
 
 class GoogleAirQualitySensor(Entity):
     """Representation of a Google Air Quality sensor."""
 
-    def __init__(self, name):
+    def __init__(self, name, state):
         self._name = name
-        self._state = None
+        self._state = state
 
     @property
     def name(self):
