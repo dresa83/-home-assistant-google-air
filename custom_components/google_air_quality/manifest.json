@@ -1,10 +1,12 @@
 {
   "domain": "google_air_quality",
   "name": "Google Air Quality",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "documentation": "https://developers.google.com/maps/documentation/air-quality",
   "requirements": ["aiohttp"],
   "dependencies": [],
-  "codeowners": ["@dresa83"],
-  "config_flow": true
+  "codeowners": ["@ydresa83"],
+  "config_flow": true,
+  "iot_class": "cloud_polling",
+  "integration_type": "device"
 }

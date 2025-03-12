@@ -1,20 +1,28 @@
-from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from .coordinator import GoogleAirQualityDataUpdateCoordinator
+from .sensor import GoogleAirQualitySensor
+from .const import DOMAIN
 
-DOMAIN = "google_air_quality"
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
+    """Set up Google Air Quality from a config entry."""
+    api_key = entry.data.get("api_key")
+    latitude = entry.data.get("latitude")
+    longitude = entry.data.get("longitude")
+    language = entry.data.get("language", "en")
 
-async def async_setup(hass: HomeAssistant, config: dict):
-    """Set up the integration."""
-    return True
+    coordinator = GoogleAirQualityDataUpdateCoordinator(hass, api_key, latitude, longitude, language)
+    await coordinator.async_config_entry_first_refresh()
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
-    """Set up integration from a config entry."""
-    hass.data.setdefault(DOMAIN, {})
-    hass.async_create_task(
-        hass.config_entries.async_forward_entry_setup(entry, "sensor")
-    )
-    return True
+    sensors = [
+        GoogleAirQualitySensor(coordinator, "AQI", "Air Quality Index"),
+        GoogleAirQualitySensor(coordinator, "PM2_5", "PM 2.5 Concentration"),
+        GoogleAirQualitySensor(coordinator, "PM10", "PM10 Concentration"),
+        GoogleAirQualitySensor(coordinator, "CO", "CO Concentration"),
+        GoogleAirQualitySensor(coordinator, "O3", "Ozone Concentration"),
+        GoogleAirQualitySensor(coordinator, "NO2", "NO2 Concentration")
+    ]
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload the integration."""
+    async_add_entities(sensors, True)
     return True
