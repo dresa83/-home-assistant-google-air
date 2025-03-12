@@ -56,10 +56,19 @@ class GoogleAirQualitySensor(Entity):
         """Fetch new data from the API."""
         url = f"{API_URL}?key={self._api_key}"
         payload = {
+            "universalAqi": True,
             "location": {
                 "latitude": self._latitude,
                 "longitude": self._longitude
-            }
+            },
+            "extraComputations": [
+                "HEALTH_RECOMMENDATIONS",
+                "DOMINANT_POLLUTANT_CONCENTRATION",
+                "POLLUTANT_CONCENTRATION",
+                "LOCAL_AQI",
+                "POLLUTANT_ADDITIONAL_INFO"
+            ],
+            "languageCode": "en"
         }
         headers = {"Content-Type": "application/json"}
 
@@ -73,10 +82,10 @@ class GoogleAirQualitySensor(Entity):
                         return
 
                     data = await response.json()
-                    _LOGGER.debug(f"Full API Response: {data}")  # Log the full response for debugging
+                    _LOGGER.debug(f"API Response: {data}")
 
                     indexes = data.get("indexes", [{}])[0]
-                    pollutants = data.get("pollutants", {})
+                    pollutants = {pollutant["code"]: pollutant for pollutant in data.get("pollutants", [])}
 
                     self._state = indexes.get("aqi", "Unknown")
                     self._attributes = {
@@ -85,10 +94,14 @@ class GoogleAirQualitySensor(Entity):
                         "dominant_pollutant": indexes.get("dominantPollutant", "Unknown"),
                         "region_code": data.get("regionCode", "Unknown"),
                         "date_time": data.get("dateTime", "Unknown"),
-                        "pollutants_raw": pollutants,  # Log raw pollutants for analysis
-                        "health_recommendations": data.get("health_recommendations", "None")
+                        "pm2_5": pollutants.get("pm25", {}).get("concentration", {}).get("value", "Unknown"),
+                        "pm10": pollutants.get("pm10", {}).get("concentration", {}).get("value", "Unknown"),
+                        "co": pollutants.get("co", {}).get("concentration", {}).get("value", "Unknown"),
+                        "ozone": pollutants.get("o3", {}).get("concentration", {}).get("value", "Unknown"),
+                        "no2": pollutants.get("no2", {}).get("concentration", {}).get("value", "Unknown"),
+                        "so2": pollutants.get("so2", {}).get("concentration", {}).get("value", "Unknown"),
+                        "health_recommendations": data.get("healthRecommendations", {})
                     }
-
             except aiohttp.ClientError as e:
                 self._state = "Error"
                 self._attributes = {"error": str(e)}
