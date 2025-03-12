@@ -1,5 +1,7 @@
 {
-    "name": "Google air",
-    "render_readme": true,
-    "country": ["DK"]
-  }
+  "name": "Google Air Quality",
+  "content_in_root": false,
+  "domain": "google_air_quality",
+  "codeowners": ["@dresa83"],
+  "requirements": []
+}

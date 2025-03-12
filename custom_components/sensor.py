@@ -1,94 +1,53 @@
-import aiohttp
-import logging
-from datetime import timedelta
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-    DataUpdateCoordinator,
-)
-from homeassistant.core import HomeAssistant
-from homeassistant.components.sensor import SensorEntity
+import requests
+from homeassistant.helpers.entity import Entity
 from homeassistant.config_entries import ConfigEntry
-from .google_air_quality.const import DOMAIN, API_URL
 
-_LOGGER = logging.getLogger(__name__)
+API_URL = "https://airquality.googleapis.com/v1/currentConditions:lookup"
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
-    """Set up the Google Air Quality sensor based on a config entry."""
-    coordinator = GoogleAirQualityCoordinator(
-        hass,
-        entry.data["api_key"],
-        entry.data["latitude"],
-        entry.data["longitude"],
-    )
-    await coordinator.async_config_entry_first_refresh()
-    async_add_entities([GoogleAirQualitySensor(coordinator)], True)
+def setup_platform(hass, config, add_entities, discovery_info=None):
+    pass
 
-class GoogleAirQualityCoordinator(DataUpdateCoordinator):
-    """Class to manage fetching data from the API."""
+async def async_setup_entry(hass, entry, async_add_entities):
+    api_key = entry.data["api_key"]
+    latitude = entry.data["latitude"]
+    longitude = entry.data["longitude"]
+    async_add_entities([GoogleAirQualitySensor(api_key, latitude, longitude)])
 
-    def __init__(self, hass: HomeAssistant, api_key: str, latitude: float, longitude: float):
-        """Initialize."""
-        self.api_key = api_key
-        self.latitude = latitude
-        self.longitude = longitude
-        self.session = aiohttp.ClientSession()
 
-        super().__init__(
-            hass,
-            _LOGGER,
-            name=DOMAIN,
-            update_interval=timedelta(minutes=30),
-        )
+class GoogleAirQualitySensor(Entity):
+    def __init__(self, api_key, latitude, longitude):
+        self._api_key = api_key
+        self._latitude = latitude
+        self._longitude = longitude
+        self._state = None
+        self._attributes = {}
 
-    async def _async_update_data(self):
-        """Fetch data from API."""
-        try:
-            async with self.session.post(
-                f"{API_URL}?key={self.api_key}",
-                json={
-                    "location": {
-                        "latitude": self.latitude,
-                        "longitude": self.longitude
-                    }
-                },
-                headers={"Content-Type": "application/json"}
-            ) as response:
-                if response.status != 200:
-                    _LOGGER.error("API returned status code %s", response.status)
-                    return {}
-                data = await response.json()
-                _LOGGER.debug("API Response: %s", data)
-                return data
-        except Exception as err:
-            _LOGGER.error("Error fetching data: %s", err)
-            return {}
-
-class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
-    """Representation of a Google Air Quality Sensor."""
-
-    def __init__(self, coordinator: GoogleAirQualityCoordinator):
-        """Initialize the sensor."""
-        super().__init__(coordinator)
-        self._attr_name = "Google Air Quality Sensor"
-        self._attr_unique_id = f"google_air_quality_{coordinator.latitude}_{coordinator.longitude}"
+    def update(self):
+        params = {
+            "key": self._api_key,
+            "location": f"{self._latitude},{self._longitude}"
+        }
+        response = requests.get(API_URL, params=params)
+        if response.status_code == 200:
+            data = response.json()
+            self._state = data.get("aqi")
+            self._attributes = {
+                "pm2_5": data.get("pm2_5"),
+                "pm10": data.get("pm10"),
+                "ozone": data.get("ozone"),
+                "no2": data.get("no2"),
+                "co": data.get("co"),
+                "health_recommendations": data.get("health_recommendations")
+            }
 
     @property
-    def native_value(self):
-        """Return the current AQI."""
-        indexes = self.coordinator.data.get("indexes", [])
-        if indexes:
-            return indexes[0].get("aqi")
-        return None
+    def name(self):
+        return "Google Air Quality"
+
+    @property
+    def state(self):
+        return self._state
 
     @property
     def extra_state_attributes(self):
-        """Return additional attributes."""
-        indexes = self.coordinator.data.get("indexes", [])
-        if indexes:
-            return {
-                "category": indexes[0].get("category"),
-                "dominant_pollutant": indexes[0].get("dominantPollutant"),
-                "aqi_display": indexes[0].get("aqiDisplay"),
-                "region_code": self.coordinator.data.get("regionCode")
-            }
-        return {}
+        return self._attributes

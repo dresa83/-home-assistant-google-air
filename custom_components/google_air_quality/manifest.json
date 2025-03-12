@@ -2,9 +2,9 @@
   "domain": "google_air_quality",
   "name": "Google Air Quality",
   "version": "1.0.0",
-  "documentation": "https://github.com/yourusername/google_air_quality",
+  "documentation": "https://developers.google.com/maps/documentation/air-quality",
+  "requirements": ["requests"],
   "dependencies": [],
   "codeowners": ["@dresa83"],
-  "requirements": ["aiohttp"]
   "config_flow": true
 }
