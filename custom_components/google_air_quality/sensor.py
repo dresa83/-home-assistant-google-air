@@ -33,4 +33,4 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
     @property
     def state(self):
         """Return the state of the sensor."""
-        return self.coordinator.data.get(self._sensor_type, {}).get("value", "Unknown")
+        return self.coordinator.data.get(self._sensor_type, "Unavailable")
