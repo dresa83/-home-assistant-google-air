@@ -4,14 +4,14 @@ from datetime import timedelta
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from .const import DOMAIN, SCAN_INTERVAL
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 class GoogleAirQualityDataUpdateCoordinator(DataUpdateCoordinator):
     """Coordinator for fetching Google Air Quality data."""
 
-    def __init__(self, hass: HomeAssistant, api_key, latitude, longitude, language):
+    def __init__(self, hass: HomeAssistant, api_key, latitude, longitude, language, scan_interval):
         """Initialize the coordinator."""
         self.api_key = api_key
         self.latitude = latitude
@@ -23,7 +23,7 @@ class GoogleAirQualityDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name="Google Air Quality",
-            update_interval=timedelta(minutes=SCAN_INTERVAL),
+            update_interval=timedelta(minutes=scan_interval),
         )
 
     async def _async_update_data(self):
@@ -50,16 +50,22 @@ class GoogleAirQualityDataUpdateCoordinator(DataUpdateCoordinator):
                 response.raise_for_status()
                 data = await response.json()
                 _LOGGER.debug(f"API Response: {data}")
-
-                # Validate and return data
-                if not data or "indexes" not in data:
-                    _LOGGER.error("No valid data returned from API")
-                    return {}
+                
+                # Process Data
+                pollutants = {
+                    pollutant["code"]: {
+                        "value": pollutant.get("concentration", {}).get("value", "Unknown"),
+                        "unit": pollutant.get("concentration", {}).get("units", "Unknown"),
+                        "sources": pollutant.get("additionalInfo", {}).get("sources", "Unknown"),
+                        "effects": pollutant.get("additionalInfo", {}).get("effects", "Unknown")
+                    }
+                    for pollutant in data.get("pollutants", [])
+                }
 
                 return {
-                    "AQI": data.get("indexes", [{}])[0].get("aqi", "Unknown"),
-                    "PM2_5": data.get("pollutants", [{}])[0].get("concentration", {}).get("value", "Unknown"),
-                    "PM10": data.get("pollutants", [{}])[1].get("concentration", {}).get("value", "Unknown")
+                    "indexes": data.get("indexes", [{}])[0],
+                    "pollutants": pollutants,
+                    "recommendations": data.get("healthRecommendations", {})
                 }
 
         except aiohttp.ClientError as e:

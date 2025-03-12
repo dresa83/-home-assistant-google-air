@@ -1,6 +1,6 @@
 from homeassistant import config_entries
 import voluptuous as vol
-from .const import DOMAIN, DEFAULT_LANGUAGE
+from .const import DOMAIN, DEFAULT_LANGUAGE, DEFAULT_SCAN_INTERVAL
 
 class GoogleAirQualityConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Google Air Quality."""
@@ -8,7 +8,7 @@ class GoogleAirQualityConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     async def async_step_user(self, user_input=None):
-        """Handle the initial step."""
+        """Handle the initial setup step."""
         if user_input is not None:
             return self.async_create_entry(title="Google Air Quality", data=user_input)
 
@@ -18,7 +18,8 @@ class GoogleAirQualityConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required("api_key"): str,
                 vol.Required("latitude"): float,
                 vol.Required("longitude"): float,
-                vol.Optional("language", default=DEFAULT_LANGUAGE): vol.In(["en", "da", "de", "fr", "es", "it", "nl"])
+                vol.Optional("language", default=DEFAULT_LANGUAGE): vol.In(["en", "da", "de", "fr", "es", "it", "nl"]),
+                vol.Optional("scan_interval", default=DEFAULT_SCAN_INTERVAL): int
             })
         )
 
@@ -30,6 +31,7 @@ class GoogleAirQualityConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="options",
             data_schema=vol.Schema({
-                vol.Optional("language", default=DEFAULT_LANGUAGE): vol.In(["en", "da", "de", "fr", "es", "it", "nl"])
+                vol.Optional("language", default=DEFAULT_LANGUAGE): vol.In(["en", "da", "de", "fr", "es", "it", "nl"]),
+                vol.Optional("scan_interval", default=DEFAULT_SCAN_INTERVAL): int
             })
         )

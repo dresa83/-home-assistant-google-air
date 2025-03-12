@@ -6,11 +6,11 @@ from .const import DOMAIN
 async def async_setup_entry(hass, entry: ConfigEntry, async_add_entities):
     """Set up sensors."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    sensors = [
-        GoogleAirQualitySensor(coordinator, "AQI", "Air Quality Index"),
-        GoogleAirQualitySensor(coordinator, "PM2_5", "PM 2.5 Concentration"),
-        GoogleAirQualitySensor(coordinator, "PM10", "PM10 Concentration")
-    ]
+    sensors = []
+
+    for pollutant in coordinator.data.get("pollutants", {}):
+        sensors.append(GoogleAirQualitySensor(coordinator, pollutant, f"{pollutant.upper()} Concentration"))
+
     async_add_entities(sensors)
 
 class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
@@ -22,15 +22,18 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
         self._attr_name = name
         self._attr_unique_id = f"{DOMAIN}_{sensor_type}"
         self._sensor_type = sensor_type
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, "google_air_quality")},
-            "name": "Google Air Quality",
-            "manufacturer": "Google",
-            "model": "Air Quality API",
-            "entry_type": "service"
-        }
 
     @property
     def state(self):
         """Return the state of the sensor."""
-        return self.coordinator.data.get(self._sensor_type, "Unavailable")
+        return self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {}).get("value", "Unavailable")
+
+    @property
+    def extra_state_attributes(self):
+        """Return additional attributes."""
+        pollutant = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {})
+        return {
+            "unit": pollutant.get("unit"),
+            "sources": pollutant.get("sources"),
+            "effects": pollutant.get("effects")
+        }
