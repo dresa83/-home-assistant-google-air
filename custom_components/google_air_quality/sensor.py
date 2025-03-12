@@ -30,13 +30,27 @@ class GoogleAirQualitySensor(Entity):
 
     @property
     def state(self):
-        """Return the state of the sensor."""
+        """Return the state of the sensor (numeric AQI)."""
         return self._state
 
     @property
     def extra_state_attributes(self):
         """Return additional attributes."""
         return self._attributes
+
+    @property
+    def icon(self):
+        """Set custom icon based on AQI value."""
+        if self._state is not None:
+            if self._state <= 50:
+                return "mdi:emoticon-happy"
+            elif self._state <= 100:
+                return "mdi:emoticon-neutral"
+            elif self._state <= 150:
+                return "mdi:emoticon-sad"
+            else:
+                return "mdi:emoticon-dead"
+        return "mdi:cloud-question"
 
     async def async_update(self):
         """Fetch new data from the API."""
@@ -61,14 +75,20 @@ class GoogleAirQualitySensor(Entity):
                     data = await response.json()
                     _LOGGER.debug(f"API Response: {data}")
 
-                    # Parse the response
                     indexes = data.get("indexes", [{}])[0]
                     self._state = indexes.get("aqi", "Unknown")
                     self._attributes = {
+                        "aqi_display": indexes.get("aqiDisplay", "Unknown"),
                         "category": indexes.get("category", "Unknown"),
                         "dominant_pollutant": indexes.get("dominantPollutant", "Unknown"),
                         "region_code": data.get("regionCode", "Unknown"),
-                        "date_time": data.get("dateTime", "Unknown")
+                        "date_time": data.get("dateTime", "Unknown"),
+                        "pm2_5": data.get("pollutants", {}).get("pm2_5", {}).get("concentration", "Unknown"),
+                        "pm10": data.get("pollutants", {}).get("pm10", {}).get("concentration", "Unknown"),
+                        "co": data.get("pollutants", {}).get("co", {}).get("concentration", "Unknown"),
+                        "ozone": data.get("pollutants", {}).get("o3", {}).get("concentration", "Unknown"),
+                        "no2": data.get("pollutants", {}).get("no2", {}).get("concentration", "Unknown"),
+                        "health_recommendations": data.get("health_recommendations", "None")
                     }
             except aiohttp.ClientError as e:
                 self._state = "Error"
