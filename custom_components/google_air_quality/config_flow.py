@@ -24,4 +24,3 @@ class GoogleAirQualityConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=data_schema,
             errors=errors
         )
-

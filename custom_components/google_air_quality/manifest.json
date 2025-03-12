@@ -5,6 +5,6 @@
   "documentation": "https://developers.google.com/maps/documentation/air-quality",
   "requirements": ["requests"],
   "dependencies": [],
-  "codeowners": ["@dresa83"],
+  "codeowners": ["@yourgithub"],
   "config_flow": true
 }
