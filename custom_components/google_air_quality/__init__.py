@@ -3,15 +3,15 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 from .const import DOMAIN, DEFAULT_SCAN_INTERVAL
 from .coordinator import GoogleAirQualityDataUpdateCoordinator
-from .config_flow import GoogleAirQualityOptionsFlowHandler
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Set up Google Air Quality integration."""
+    return True
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Google Air Quality from a config entry."""
-
-    # Register the options flow
-    hass.config_entries.async_setup_platform(entry, GoogleAirQualityOptionsFlowHandler)
-
-    # Retrieve configuration and options
+    
+    # Read options or fallback to defaults
     scan_interval = entry.options.get("scan_interval", entry.data.get("scan_interval", DEFAULT_SCAN_INTERVAL))
     language = entry.options.get("language", entry.data.get("language", "en"))
 
@@ -34,7 +34,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload the integration."""
+    """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, ["sensor"])
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
