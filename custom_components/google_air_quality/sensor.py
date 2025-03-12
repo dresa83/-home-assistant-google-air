@@ -1,9 +1,26 @@
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.const import CONF_API_KEY, CONF_LATITUDE, CONF_LONGITUDE, CONF_LANGUAGE
 from .const import DOMAIN
+from .coordinator import GoogleAirQualityDataUpdateCoordinator
 
-class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
+    """Set up Google Air Quality sensors."""
+    coordinator = hass.data[DOMAIN]["coordinator"]
+
+    sensors = [
+        GoogleAirQualitySensor(coordinator, "AQI", "Air Quality Index"),
+        GoogleAirQualitySensor(coordinator, "PM2_5", "PM 2.5 Concentration"),
+        GoogleAirQualitySensor(coordinator, "PM10", "PM10 Concentration"),
+        GoogleAirQualitySensor(coordinator, "CO", "CO Concentration"),
+        GoogleAirQualitySensor(coordinator, "O3", "Ozone Concentration"),
+        GoogleAirQualitySensor(coordinator, "NO2", "NO2 Concentration")
+    ]
+
+    async_add_entities(sensors)
+
+class GoogleAirQualitySensor(CoordinatorEntity):
     """Representation of a Google Air Quality sensor."""
 
     def __init__(self, coordinator, sensor_type, name):
@@ -11,21 +28,9 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self._sensor_type = sensor_type
         self._attr_name = name
-        self._attr_unique_id = f"{DOMAIN}_{sensor_type.lower()}_{coordinator.latitude}_{coordinator.longitude}"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, f"{coordinator.latitude}_{coordinator.longitude}")},
-            "name": "Google Air Quality",
-            "manufacturer": "Google",
-            "model": "Air Quality API",
-            "entry_type": "service"
-        }
+        self._attr_unique_id = f"{DOMAIN}_{sensor_type.lower()}"
 
     @property
     def state(self):
         """Return the state of the sensor."""
         return self.coordinator.data.get(self._sensor_type, {}).get("value", "Unknown")
-
-    @property
-    def extra_state_attributes(self):
-        """Return additional attributes."""
-        return self.coordinator.data.get(self._sensor_type, {})
