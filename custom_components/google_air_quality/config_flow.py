@@ -23,15 +23,23 @@ class GoogleAirQualityConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             })
         )
 
-    async def async_step_options(self, user_input=None):
-        """Handle options flow."""
+class GoogleAirQualityOptionsFlowHandler(config_entries.OptionsFlow):
+    """Handle the options flow for Google Air Quality."""
+
+    def __init__(self, config_entry):
+        """Initialize the options flow."""
+        self.config_entry = config_entry
+
+    async def async_step_init(self, user_input=None):
+        """Manage the options step."""
         if user_input is not None:
             return self.async_create_entry(title="Options", data=user_input)
 
         return self.async_show_form(
-            step_id="options",
+            step_id="init",
             data_schema=vol.Schema({
-                vol.Optional("language", default=DEFAULT_LANGUAGE): vol.In(["en", "da", "de", "fr", "es", "it", "nl"]),
-                vol.Optional("scan_interval", default=DEFAULT_SCAN_INTERVAL): int
+                vol.Optional("language", default=self.config_entry.options.get("language", DEFAULT_LANGUAGE)):
+                    vol.In(["en", "da", "de", "fr", "es", "it", "nl"]),
+                vol.Optional("scan_interval", default=self.config_entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)): int,
             })
         )
