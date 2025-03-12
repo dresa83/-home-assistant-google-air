@@ -37,3 +37,15 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
             "sources": pollutant.get("sources"),
             "effects": pollutant.get("effects")
         }
+
+    @property
+    def device_info(self):
+        """Return device information."""
+        return {
+            "identifiers": {(DOMAIN, "google_air_quality")},
+            "name": "Google Air Quality",
+            "manufacturer": "Google",
+            "model": "Air Quality API",
+            "entry_type": "service",
+            "configuration_url": "https://developers.google.com/maps/documentation/air-quality"
+        }
