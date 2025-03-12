@@ -1,16 +1,19 @@
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from .const import DOMAIN
+from .const import DOMAIN, DEFAULT_SCAN_INTERVAL
 from .coordinator import GoogleAirQualityDataUpdateCoordinator
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up Google Air Quality from a config entry."""
+    scan_interval = entry.data.get("scan_interval", DEFAULT_SCAN_INTERVAL)
+
     coordinator = GoogleAirQualityDataUpdateCoordinator(
         hass,
         entry.data["api_key"],
         entry.data["latitude"],
         entry.data["longitude"],
-        entry.data.get("language", "en")
+        entry.data.get("language", "en"),
+        scan_interval
     )
 
     await coordinator.async_config_entry_first_refresh()
