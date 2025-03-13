@@ -32,10 +32,13 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
     def extra_state_attributes(self):
         """Return additional attributes."""
         pollutant = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {})
+        recommendations = self.coordinator.data.get("recommendations", {})
+
         return {
             "unit": pollutant.get("unit"),
             "sources": pollutant.get("sources"),
-            "effects": pollutant.get("effects")
+            "effects": pollutant.get("effects"),
+            "health_recommendations": recommendations
         }
 
     @property
