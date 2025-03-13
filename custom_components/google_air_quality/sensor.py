@@ -4,7 +4,7 @@ from homeassistant.config_entries import ConfigEntry
 from datetime import datetime, timezone
 from .const import DOMAIN
 
-# Define the health recommendation groups
+# Define health recommendation groups
 RECOMMENDATION_GROUPS = [
     "generalPopulation",
     "elderly",
@@ -14,6 +14,16 @@ RECOMMENDATION_GROUPS = [
     "pregnantWomen",
     "children"
 ]
+
+# Mapping pollutants to icons
+POLLUTANT_ICONS = {
+    "pm25": "mdi:weather-hazy",
+    "pm10": "mdi:weather-windy",
+    "co": "mdi:molecule-co",
+    "no2": "mdi:molecule",
+    "o3": "mdi:weather-cloudy",
+    "so2": "mdi:chemical-weapon"
+}
 
 async def async_setup_entry(hass, entry: ConfigEntry, async_add_entities):
     """Set up sensors."""
@@ -45,6 +55,11 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
         return self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {}).get("value", "Unknown")
 
     @property
+    def icon(self):
+        """Assign custom icon based on pollutant type."""
+        return POLLUTANT_ICONS.get(self._sensor_type, "mdi:cloud")
+
+    @property
     def extra_state_attributes(self):
         """Return additional attributes including last updated."""
         pollutant = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {})
@@ -61,7 +76,6 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
         """Force state update and fire custom event for Logbook."""
         self.async_write_ha_state()
 
-        # Fire custom event to trigger Logbook entry
         self.hass.bus.async_fire(
             "google_air_quality_state_changed",
             {
@@ -98,6 +112,11 @@ class GoogleAirQualityHealthSensor(CoordinatorEntity, SensorEntity):
         return "Available"
 
     @property
+    def icon(self):
+        """Custom icon for health recommendations."""
+        return "mdi:heart-pulse"
+
+    @property
     def extra_state_attributes(self):
         """Return health recommendations as attributes, with last updated."""
         recommendations = self.coordinator.data.get("recommendations", {})
@@ -112,7 +131,6 @@ class GoogleAirQualityHealthSensor(CoordinatorEntity, SensorEntity):
         """Force state update and fire custom event for Logbook."""
         self.async_write_ha_state()
 
-        # Fire custom event to trigger Logbook entry
         self.hass.bus.async_fire(
             "google_air_quality_state_changed",
             {
