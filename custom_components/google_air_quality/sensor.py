@@ -26,20 +26,14 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
         self._attr_name = name
         self._attr_unique_id = f"{DOMAIN}_{sensor_type}"
         self._sensor_type = sensor_type
-        self._attr_available = False  # Default to unavailable
+        self._last_state = None
 
     @property
     def state(self):
         """Return the state of the sensor."""
         pollutant_data = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {})
-        return pollutant_data.get("value", "Unknown")
-
-    @property
-    def available(self):
-        """Return if entity is available."""
-        # Mark available only if valid data is present.
-        pollutant_data = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {})
-        return pollutant_data.get("value") is not None
+        value = pollutant_data.get("value")
+        return value if value is not None else "Unknown"
 
     @property
     def extra_state_attributes(self):
@@ -50,6 +44,18 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
             "sources": pollutant.get("sources", "Unknown"),
             "effects": pollutant.get("effects", "Unknown")
         }
+
+    def _handle_coordinator_update(self):
+        """Force update to trigger Logbook properly."""
+        current_state = self.state
+
+        # If state didn't change, force an 'Unknown' state and reset
+        if current_state == self._last_state:
+            self._last_state = "Unknown"
+            self.async_write_ha_state()
+        
+        self._last_state = current_state
+        self.async_write_ha_state()
 
     @property
     def device_info(self):
@@ -82,6 +88,10 @@ class GoogleAirQualityHealthSensor(CoordinatorEntity, SensorEntity):
         """Return all health recommendations as attributes."""
         recommendations = self.coordinator.data.get("recommendations", {})
         return {category: recommendations.get(category, "No recommendation available.") for category in recommendations}
+
+    def _handle_coordinator_update(self):
+        """Force update for health recommendations."""
+        self.async_write_ha_state()
 
     @property
     def device_info(self):
