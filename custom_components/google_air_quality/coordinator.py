@@ -51,6 +51,7 @@ class GoogleAirQualityDataUpdateCoordinator(DataUpdateCoordinator):
                 data = await response.json()
                 _LOGGER.debug(f"API Response: {data}")
                 
+                # Process Data
                 pollutants = {
                     pollutant["code"]: {
                         "value": pollutant.get("concentration", {}).get("value", "Unknown"),
@@ -61,12 +62,10 @@ class GoogleAirQualityDataUpdateCoordinator(DataUpdateCoordinator):
                     for pollutant in data.get("pollutants", [])
                 }
 
-                recommendations = data.get("healthRecommendations", {})
-
                 return {
                     "indexes": data.get("indexes", [{}])[0],
                     "pollutants": pollutants,
-                    "recommendations": recommendations
+                    "recommendations": data.get("healthRecommendations", {})
                 }
 
         except aiohttp.ClientError as e:
