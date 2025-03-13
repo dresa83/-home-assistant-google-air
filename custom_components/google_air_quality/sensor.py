@@ -25,6 +25,63 @@ POLLUTANT_ICONS = {
     "so2": "mdi:chemical-weapon"
 }
 
+def get_color_category(sensor_type, value):
+    """Determine color category based on pollutant value."""
+    if value == "Unknown" or value is None:
+        return "unknown"
+
+    value = float(value)
+
+    if sensor_type == "pm25":
+        if value <= 12: return "green"
+        elif value <= 35.4: return "yellow"
+        elif value <= 55.4: return "orange"
+        elif value <= 150.4: return "red"
+        elif value <= 250.4: return "purple"
+        else: return "maroon"
+
+    elif sensor_type == "pm10":
+        if value <= 54: return "green"
+        elif value <= 154: return "yellow"
+        elif value <= 254: return "orange"
+        elif value <= 354: return "red"
+        elif value <= 424: return "purple"
+        else: return "maroon"
+
+    elif sensor_type == "co":
+        if value <= 4.4: return "green"
+        elif value <= 9.4: return "yellow"
+        elif value <= 12.4: return "orange"
+        elif value <= 15.4: return "red"
+        elif value <= 30.4: return "purple"
+        else: return "maroon"
+
+    elif sensor_type == "no2":
+        if value <= 53: return "green"
+        elif value <= 100: return "yellow"
+        elif value <= 360: return "orange"
+        elif value <= 649: return "red"
+        elif value <= 1249: return "purple"
+        else: return "maroon"
+
+    elif sensor_type == "o3":
+        if value <= 54: return "green"
+        elif value <= 70: return "yellow"
+        elif value <= 85: return "orange"
+        elif value <= 105: return "red"
+        elif value <= 200: return "purple"
+        else: return "maroon"
+
+    elif sensor_type == "so2":
+        if value <= 35: return "green"
+        elif value <= 75: return "yellow"
+        elif value <= 185: return "orange"
+        elif value <= 304: return "red"
+        elif value <= 604: return "purple"
+        else: return "maroon"
+
+    return "unknown"
+
 async def async_setup_entry(hass, entry: ConfigEntry, async_add_entities):
     """Set up sensors."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
@@ -61,15 +118,18 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        """Return additional attributes including last updated."""
+        """Return additional attributes including last updated and color category."""
         pollutant = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {})
-        last_updated = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+        value = pollutant.get("value", "Unknown")
+        last_updated = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S")
+        color_category = get_color_category(self._sensor_type, value)
 
         return {
             "unit": pollutant.get("unit", "Unknown"),
             "sources": pollutant.get("sources", "Unknown"),
             "effects": pollutant.get("effects", "Unknown"),
-            "last_updated": last_updated
+            "last_updated": last_updated,
+            "color_category": color_category
         }
 
     def _handle_coordinator_update(self):
