@@ -22,17 +22,20 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
         self._attr_name = name
         self._attr_unique_id = f"{DOMAIN}_{sensor_type}"
         self._sensor_type = sensor_type
-        self._attr_available = True  # Assume available initially
+        self._attr_available = False  # Default to unavailable
 
     @property
     def state(self):
         """Return the state of the sensor."""
         pollutant_data = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {})
-        value = pollutant_data.get("value", "Unknown")
+        return pollutant_data.get("value", "Unknown")
 
-        # Mark sensor as available only if valid data is present
-        self._attr_available = value != "Unknown"
-        return value
+    @property
+    def available(self):
+        """Return if entity is available."""
+        # Mark available only if valid data is present.
+        pollutant_data = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {})
+        return pollutant_data.get("value") is not None
 
     @property
     def extra_state_attributes(self):

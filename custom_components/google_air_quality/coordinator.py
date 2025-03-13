@@ -53,7 +53,7 @@ class GoogleAirQualityDataUpdateCoordinator(DataUpdateCoordinator):
 
                 pollutants = {
                     pollutant["code"]: {
-                        "value": pollutant.get("concentration", {}).get("value", "Unknown"),
+                        "value": pollutant.get("concentration", {}).get("value"),
                         "unit": pollutant.get("concentration", {}).get("units", "Unknown"),
                         "sources": pollutant.get("additionalInfo", {}).get("sources", "Unknown"),
                         "effects": pollutant.get("additionalInfo", {}).get("effects", "Unknown")
@@ -63,15 +63,14 @@ class GoogleAirQualityDataUpdateCoordinator(DataUpdateCoordinator):
 
                 recommendations = data.get("healthRecommendations", {})
 
-                # Only return data if at least some data is available
-                if pollutants or recommendations:
+                if pollutants:
                     return {
                         "indexes": data.get("indexes", [{}])[0],
                         "pollutants": pollutants,
                         "recommendations": recommendations
                     }
 
-                _LOGGER.warning("No valid data received from the API.")
+                _LOGGER.warning("No valid pollutant data received from the API.")
                 return {}
 
         except aiohttp.ClientError as e:
