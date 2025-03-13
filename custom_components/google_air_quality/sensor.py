@@ -1,4 +1,5 @@
 from homeassistant.components.sensor import SensorEntity
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.config_entries import ConfigEntry
 from .const import DOMAIN
@@ -55,13 +56,20 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
         }
 
     def _handle_coordinator_update(self):
-        """Force update to trigger Logbook correctly."""
+        """Forcefully trigger state change and notify Home Assistant."""
         current_state = self.state
 
-        # Force write state even if value didn't change
-        if current_state != self._last_state or current_state == "Unknown":
-            self._last_state = current_state
+        # Force a state change if the value remains the same.
+        if current_state == self._last_state:
+            # Temporarily set it to 'Unknown' and then back to force the logbook entry
+            self._last_state = "Unknown"
             self.async_write_ha_state()
+        
+        self._last_state = current_state
+        self.async_write_ha_state()
+
+        # Notify Home Assistant of the state change explicitly
+        async_dispatcher_send(self.hass, f"{DOMAIN}_sensor_updated")
 
     @property
     def device_info(self):
@@ -99,8 +107,9 @@ class GoogleAirQualityHealthSensor(CoordinatorEntity, SensorEntity):
         }
 
     def _handle_coordinator_update(self):
-        """Force update to trigger Logbook correctly."""
+        """Trigger update explicitly to force Logbook entry."""
         self.async_write_ha_state()
+        async_dispatcher_send(self.hass, f"{DOMAIN}_health_sensor_updated")
 
     @property
     def device_info(self):
