@@ -1,7 +1,7 @@
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.config_entries import ConfigEntry
+from datetime import datetime, timezone
 from .const import DOMAIN
 
 # Define health recommendation groups
@@ -38,7 +38,6 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
         self._sensor_type = sensor_type
         self._attr_name = f"Google Air Quality {sensor_type.upper()} Concentration"
         self._attr_unique_id = f"{DOMAIN}_{sensor_type}"
-        self._last_state = None
 
     @property
     def state(self):
@@ -47,29 +46,20 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        """Return additional attributes."""
+        """Return additional attributes including last updated."""
         pollutant = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {})
+        last_updated = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+
         return {
             "unit": pollutant.get("unit", "Unknown"),
             "sources": pollutant.get("sources", "Unknown"),
-            "effects": pollutant.get("effects", "Unknown")
+            "effects": pollutant.get("effects", "Unknown"),
+            "last_updated": last_updated
         }
 
     def _handle_coordinator_update(self):
-        """Forcefully trigger state change and notify Home Assistant."""
-        current_state = self.state
-
-        # Force a state change if the value remains the same.
-        if current_state == self._last_state:
-            # Temporarily set it to 'Unknown' and then back to force the logbook entry
-            self._last_state = "Unknown"
-            self.async_write_ha_state()
-        
-        self._last_state = current_state
+        """Force state update."""
         self.async_write_ha_state()
-
-        # Notify Home Assistant of the state change explicitly
-        async_dispatcher_send(self.hass, f"{DOMAIN}_sensor_updated")
 
     @property
     def device_info(self):
@@ -94,22 +84,23 @@ class GoogleAirQualityHealthSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def state(self):
-        """Static state just to represent presence."""
+        """Static state to indicate availability."""
         return "Available"
 
     @property
     def extra_state_attributes(self):
-        """Return health recommendations as attributes."""
+        """Return health recommendations as attributes, with last updated."""
         recommendations = self.coordinator.data.get("recommendations", {})
+        last_updated = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+
         return {
             group: recommendations.get(group, "No recommendation available.")
             for group in RECOMMENDATION_GROUPS
-        }
+        } | {"last_updated": last_updated}
 
     def _handle_coordinator_update(self):
-        """Trigger update explicitly to force Logbook entry."""
+        """Force state update."""
         self.async_write_ha_state()
-        async_dispatcher_send(self.hass, f"{DOMAIN}_health_sensor_updated")
 
     @property
     def device_info(self):
