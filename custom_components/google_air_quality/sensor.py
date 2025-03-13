@@ -37,12 +37,20 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
         self._attr_name = name
         self._attr_unique_id = f"{DOMAIN}_{sensor_type}"
         self._sensor_type = sensor_type
+        self._last_state = None  # Track last state to detect changes
 
     @property
     def state(self):
         """Return the state of the sensor."""
         value = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {}).get("value")
         return value if value is not None else "Unknown"
+
+    def _handle_coordinator_update(self):
+        """Force update if the state actually changes."""
+        current_state = self.state
+        if current_state != self._last_state:
+            self._last_state = current_state
+            self.async_write_ha_state()
 
     @property
     def extra_state_attributes(self):
@@ -53,10 +61,6 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
             "sources": pollutant.get("sources", "Unknown"),
             "effects": pollutant.get("effects", "Unknown")
         }
-
-    def _handle_coordinator_update(self):
-        """Trigger state update explicitly."""
-        self.async_write_ha_state()
 
     @property
     def device_info(self):
@@ -81,7 +85,7 @@ class GoogleAirQualityRecommendationSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def state(self):
-        """Return a simple available state."""
+        """State just indicates availability."""
         return "Available"
 
     @property
@@ -94,7 +98,7 @@ class GoogleAirQualityRecommendationSensor(CoordinatorEntity, SensorEntity):
         }
 
     def _handle_coordinator_update(self):
-        """Trigger state update explicitly."""
+        """Force update for health recommendations."""
         self.async_write_ha_state()
 
     @property
