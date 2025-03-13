@@ -4,7 +4,7 @@ from homeassistant.config_entries import ConfigEntry
 from datetime import datetime, timezone
 from .const import DOMAIN
 
-# Define health recommendation groups
+# Define the health recommendation groups
 RECOMMENDATION_GROUPS = [
     "generalPopulation",
     "elderly",
