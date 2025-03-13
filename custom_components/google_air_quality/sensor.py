@@ -37,19 +37,17 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
         self._attr_name = name
         self._attr_unique_id = f"{DOMAIN}_{sensor_type}"
         self._sensor_type = sensor_type
-        self._attr_available = False
 
     @property
     def state(self):
         """Return the state of the sensor."""
-        value = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {}).get("value", "Unknown")
-        self._attr_available = value != "Unknown"
-        return value
+        value = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {}).get("value")
+        return value if value is not None else "Unknown"
 
     @property
     def available(self):
-        """Ensure the sensor is available if it has valid data."""
-        return self._attr_available
+        """Mark sensor as available if coordinator has data."""
+        return bool(self.coordinator.data.get("pollutants", {}).get(self._sensor_type))
 
     @property
     def extra_state_attributes(self):
@@ -85,7 +83,6 @@ class GoogleAirQualityRecommendationSensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self._attr_name = "Google Air Quality Health Recommendations"
         self._attr_unique_id = f"{DOMAIN}_health_recommendations"
-        self._attr_available = True  # Always available unless API fails
 
     @property
     def state(self):
@@ -94,8 +91,8 @@ class GoogleAirQualityRecommendationSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def available(self):
-        """Return availability based on coordinator data."""
-        return bool(self.coordinator.data)
+        """Mark the sensor as available if recommendations exist."""
+        return bool(self.coordinator.data.get("recommendations"))
 
     @property
     def extra_state_attributes(self):
