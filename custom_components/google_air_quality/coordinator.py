@@ -50,7 +50,7 @@ class GoogleAirQualityDataUpdateCoordinator(DataUpdateCoordinator):
                 response.raise_for_status()
                 data = await response.json()
                 _LOGGER.debug(f"API Response: {data}")
-                
+
                 pollutants = {
                     pollutant["code"]: {
                         "value": pollutant.get("concentration", {}).get("value", "Unknown"),
@@ -63,11 +63,16 @@ class GoogleAirQualityDataUpdateCoordinator(DataUpdateCoordinator):
 
                 recommendations = data.get("healthRecommendations", {})
 
-                return {
-                    "indexes": data.get("indexes", [{}])[0],
-                    "pollutants": pollutants,
-                    "recommendations": recommendations
-                }
+                # Only return data if at least some data is available
+                if pollutants or recommendations:
+                    return {
+                        "indexes": data.get("indexes", [{}])[0],
+                        "pollutants": pollutants,
+                        "recommendations": recommendations
+                    }
+
+                _LOGGER.warning("No valid data received from the API.")
+                return {}
 
         except aiohttp.ClientError as e:
             _LOGGER.error(f"API Client Error: {e}")

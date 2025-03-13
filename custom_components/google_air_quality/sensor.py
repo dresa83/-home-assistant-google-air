@@ -22,11 +22,17 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
         self._attr_name = name
         self._attr_unique_id = f"{DOMAIN}_{sensor_type}"
         self._sensor_type = sensor_type
+        self._attr_available = True  # Assume available initially
 
     @property
     def state(self):
         """Return the state of the sensor."""
-        return self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {}).get("value", "Unavailable")
+        pollutant_data = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {})
+        value = pollutant_data.get("value", "Unknown")
+
+        # Mark sensor as available only if valid data is present
+        self._attr_available = value != "Unknown"
+        return value
 
     @property
     def extra_state_attributes(self):
@@ -35,10 +41,10 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
         recommendations = self.coordinator.data.get("recommendations", {})
 
         return {
-            "unit": pollutant.get("unit"),
-            "sources": pollutant.get("sources"),
-            "effects": pollutant.get("effects"),
-            "health_recommendations": recommendations
+            "unit": pollutant.get("unit", "Unknown"),
+            "sources": pollutant.get("sources", "Unknown"),
+            "effects": pollutant.get("effects", "Unknown"),
+            "health_recommendations": recommendations or "No data available"
         }
 
     @property
