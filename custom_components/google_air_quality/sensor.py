@@ -3,7 +3,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.config_entries import ConfigEntry
 from .const import DOMAIN
 
-# Define all possible recommendation groups
+# Define recommendation groups
 RECOMMENDATION_GROUPS = [
     "generalPopulation",
     "elderly",
@@ -37,11 +37,19 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
         self._attr_name = name
         self._attr_unique_id = f"{DOMAIN}_{sensor_type}"
         self._sensor_type = sensor_type
+        self._attr_available = False
 
     @property
     def state(self):
         """Return the state of the sensor."""
-        return self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {}).get("value", "Unknown")
+        value = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {}).get("value", "Unknown")
+        self._attr_available = value != "Unknown"
+        return value
+
+    @property
+    def available(self):
+        """Ensure the sensor is available if it has valid data."""
+        return self._attr_available
 
     @property
     def extra_state_attributes(self):
@@ -52,6 +60,10 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
             "sources": pollutant.get("sources", "Unknown"),
             "effects": pollutant.get("effects", "Unknown")
         }
+
+    def _handle_coordinator_update(self):
+        """Write state on data update to trigger the Logbook."""
+        self.async_write_ha_state()
 
     @property
     def device_info(self):
@@ -73,12 +85,17 @@ class GoogleAirQualityRecommendationSensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self._attr_name = "Google Air Quality Health Recommendations"
         self._attr_unique_id = f"{DOMAIN}_health_recommendations"
+        self._attr_available = True  # Always available unless API fails
 
     @property
     def state(self):
-        """Return the state of the sensor."""
-        # State can be a general summary or count, or just 'available'
+        """State just indicates availability."""
         return "Available"
+
+    @property
+    def available(self):
+        """Return availability based on coordinator data."""
+        return bool(self.coordinator.data)
 
     @property
     def extra_state_attributes(self):
@@ -88,6 +105,10 @@ class GoogleAirQualityRecommendationSensor(CoordinatorEntity, SensorEntity):
             group: recommendations.get(group, "No recommendation available.")
             for group in RECOMMENDATION_GROUPS
         }
+
+    def _handle_coordinator_update(self):
+        """Write state on data update to trigger the Logbook."""
+        self.async_write_ha_state()
 
     @property
     def device_info(self):
