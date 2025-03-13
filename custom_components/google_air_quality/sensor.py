@@ -58,8 +58,18 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
         }
 
     def _handle_coordinator_update(self):
-        """Force state update."""
+        """Force state update and fire custom event for Logbook."""
         self.async_write_ha_state()
+
+        # Fire custom event to trigger Logbook entry
+        self.hass.bus.async_fire(
+            "google_air_quality_state_changed",
+            {
+                "entity_id": self.entity_id,
+                "new_state": self.state,
+                "last_updated": datetime.now(timezone.utc).isoformat()
+            }
+        )
 
     @property
     def device_info(self):
@@ -99,8 +109,18 @@ class GoogleAirQualityHealthSensor(CoordinatorEntity, SensorEntity):
         } | {"last_updated": last_updated}
 
     def _handle_coordinator_update(self):
-        """Force state update."""
+        """Force state update and fire custom event for Logbook."""
         self.async_write_ha_state()
+
+        # Fire custom event to trigger Logbook entry
+        self.hass.bus.async_fire(
+            "google_air_quality_state_changed",
+            {
+                "entity_id": self.entity_id,
+                "new_state": self.state,
+                "last_updated": datetime.now(timezone.utc).isoformat()
+            }
+        )
 
     @property
     def device_info(self):
