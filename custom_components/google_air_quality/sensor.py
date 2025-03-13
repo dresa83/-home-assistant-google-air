@@ -45,11 +45,6 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
         return value if value is not None else "Unknown"
 
     @property
-    def available(self):
-        """Mark sensor as available if coordinator has data."""
-        return bool(self.coordinator.data.get("pollutants", {}).get(self._sensor_type))
-
-    @property
     def extra_state_attributes(self):
         """Return additional attributes."""
         pollutant = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {})
@@ -60,7 +55,7 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
         }
 
     def _handle_coordinator_update(self):
-        """Write state on data update to trigger the Logbook."""
+        """Trigger state update explicitly."""
         self.async_write_ha_state()
 
     @property
@@ -86,13 +81,8 @@ class GoogleAirQualityRecommendationSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def state(self):
-        """State just indicates availability."""
+        """Return a simple available state."""
         return "Available"
-
-    @property
-    def available(self):
-        """Mark the sensor as available if recommendations exist."""
-        return bool(self.coordinator.data.get("recommendations"))
 
     @property
     def extra_state_attributes(self):
@@ -104,7 +94,7 @@ class GoogleAirQualityRecommendationSensor(CoordinatorEntity, SensorEntity):
         }
 
     def _handle_coordinator_update(self):
-        """Write state on data update to trigger the Logbook."""
+        """Trigger state update explicitly."""
         self.async_write_ha_state()
 
     @property
