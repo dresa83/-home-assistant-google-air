@@ -25,6 +25,16 @@ POLLUTANT_ICONS = {
     "so2": "mdi:chemical-weapon"
 }
 
+# Mapping display and full names for pollutants
+POLLUTANT_DETAILS = {
+    "pm25": {"display_name": "PM2.5", "full_name": "Fine Particulate Matter"},
+    "pm10": {"display_name": "PM10", "full_name": "Inhalable Particulate Matter"},
+    "co": {"display_name": "CO", "full_name": "Carbon Monoxide"},
+    "no2": {"display_name": "NO2", "full_name": "Nitrogen Dioxide"},
+    "o3": {"display_name": "O3", "full_name": "Ozone"},
+    "so2": {"display_name": "SO2", "full_name": "Sulfur Dioxide"}
+}
+
 async def async_setup_entry(hass, entry: ConfigEntry, async_add_entities):
     """Set up sensors."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
@@ -61,11 +71,15 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        """Return additional attributes including last updated."""
+        """Return additional attributes including last updated, display name, and full name."""
         pollutant = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {})
+        value = pollutant.get("value", "Unknown")
         last_updated = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
         return {
+            "display_name": POLLUTANT_DETAILS.get(self._sensor_type, {}).get("display_name", "Unknown"),
+            "full_name": POLLUTANT_DETAILS.get(self._sensor_type, {}).get("full_name", "Unknown"),
+            "value": value,
             "unit": pollutant.get("unit", "Unknown"),
             "sources": pollutant.get("sources", "Unknown"),
             "effects": pollutant.get("effects", "Unknown"),
