@@ -12,7 +12,7 @@ POLLUTANT_ICONS = {
     "no2": "mdi:molecule",
     "o3": "mdi:weather-cloudy",
     "so2": "mdi:chemical-weapon",
-    "eaqi": "mdi:cloud"
+    "uaqi": "mdi:cloud"
 }
 
 async def async_setup_entry(hass, entry: ConfigEntry, async_add_entities):
@@ -24,8 +24,8 @@ async def async_setup_entry(hass, entry: ConfigEntry, async_add_entities):
     for pollutant in coordinator.data.get("pollutants", {}):
         sensors.append(GoogleAirQualitySensor(coordinator, pollutant))
 
-    # EAQI Sensor
-    sensors.append(GoogleAirQualityEAQISensor(coordinator))
+    # UAQI Sensor
+    sensors.append(GoogleAirQualityUAQISensor(coordinator))
 
     # Health Recommendation Sensor
     sensors.append(GoogleAirQualityHealthSensor(coordinator))
@@ -53,6 +53,8 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
     def extra_state_attributes(self):
         pollutant = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {})
         return {
+            "display_name": pollutant.get("displayName", "Unknown"),
+            "full_name": pollutant.get("fullName", "Unknown"),
             "value": pollutant.get("value", "Unknown"),
             "unit": pollutant.get("unit", "Unknown"),
             "sources": pollutant.get("sources", "Unknown"),
@@ -71,36 +73,42 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
             "configuration_url": "https://developers.google.com/maps/documentation/air-quality"
         }
 
-class GoogleAirQualityEAQISensor(CoordinatorEntity, SensorEntity):
-    """Representation of the European AQI (EAQI) sensor."""
+class GoogleAirQualityUAQISensor(CoordinatorEntity, SensorEntity):
+    """Representation of the Universal AQI (UAQI) sensor."""
 
     def __init__(self, coordinator):
         super().__init__(coordinator)
-        self._attr_name = "Google Air Quality EAQI"
-        self._attr_unique_id = f"{DOMAIN}_eaqi"
+        self._attr_name = "Google Air Quality UAQI"
+        self._attr_unique_id = f"{DOMAIN}_uaqi"
 
     @property
     def state(self):
-        index = self._get_eaqi_index()
+        index = self._get_uaqi_index()
         return index.get("aqi", "Unknown")
 
     @property
     def icon(self):
-        return POLLUTANT_ICONS["eaqi"]
+        return POLLUTANT_ICONS["uaqi"]
 
     @property
     def extra_state_attributes(self):
-        index = self._get_eaqi_index()
+        index = self._get_uaqi_index()
+        color = index.get("color", {})
         return {
             "display_name": index.get("displayName", "Unknown"),
             "category": index.get("category", "Unknown"),
             "dominant_pollutant": index.get("dominantPollutant", "Unknown"),
+            "color": {
+                "red": color.get("red", 0),
+                "green": color.get("green", 0),
+                "blue": color.get("blue", 0)
+            },
             "last_updated": datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         }
 
-    def _get_eaqi_index(self):
+    def _get_uaqi_index(self):
         indexes = self.coordinator.data.get("indexes", [])
-        return next((i for i in indexes if i.get("code") == "eaqi"), {})
+        return next((i for i in indexes if i.get("code") == "uaqi"), {})
 
     @property
     def device_info(self):
