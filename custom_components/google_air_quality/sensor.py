@@ -1,8 +1,11 @@
+import logging
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.config_entries import ConfigEntry
 from datetime import datetime, timezone
 from .const import DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 # Define health recommendation groups
 RECOMMENDATION_GROUPS = [
@@ -25,20 +28,13 @@ POLLUTANT_ICONS = {
     "so2": "mdi:chemical-weapon"
 }
 
-# Mapping display and full names for pollutants
-POLLUTANT_DETAILS = {
-    "pm25": {"display_name": "PM2.5", "full_name": "Fine Particulate Matter"},
-    "pm10": {"display_name": "PM10", "full_name": "Inhalable Particulate Matter"},
-    "co": {"display_name": "CO", "full_name": "Carbon Monoxide"},
-    "no2": {"display_name": "NO2", "full_name": "Nitrogen Dioxide"},
-    "o3": {"display_name": "O3", "full_name": "Ozone"},
-    "so2": {"display_name": "SO2", "full_name": "Sulfur Dioxide"}
-}
-
 async def async_setup_entry(hass, entry: ConfigEntry, async_add_entities):
     """Set up sensors."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     sensors = []
+
+    # Debug the full data structure
+    _LOGGER.debug(f"Full API data received: {coordinator.data}")
 
     # Create pollutant sensors
     for pollutant in coordinator.data.get("pollutants", {}):
@@ -62,12 +58,9 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
     @property
     def state(self):
         """Return the state of the sensor."""
-        return self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {}).get("value", "Unknown")
-
-    @property
-    def icon(self):
-        """Assign custom icon based on pollutant type."""
-        return POLLUTANT_ICONS.get(self._sensor_type, "mdi:cloud")
+        value = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {}).get("value", "Unknown")
+        _LOGGER.debug(f"{self._sensor_type} value: {value}")
+        return value
 
     @property
     def extra_state_attributes(self):
@@ -75,22 +68,27 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
         pollutant = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {})
         additional_info = pollutant.get("additionalInfo", {})
         value = pollutant.get("value", "Unknown")
+        sources = additional_info.get("sources", "Unknown")
+        effects = additional_info.get("effects", "Unknown")
+
+        # Log the attribute extraction for debugging
+        _LOGGER.debug(f"{self._sensor_type} additional info: Sources: {sources}, Effects: {effects}")
+
         last_updated = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
         return {
-            "display_name": POLLUTANT_DETAILS.get(self._sensor_type, {}).get("display_name", "Unknown"),
-            "full_name": POLLUTANT_DETAILS.get(self._sensor_type, {}).get("full_name", "Unknown"),
+            "display_name": pollutant.get("displayName", "Unknown"),
+            "full_name": pollutant.get("fullName", "Unknown"),
             "value": value,
             "unit": pollutant.get("unit", "Unknown"),
-            "sources": additional_info.get("sources", "Unknown"),
-            "effects": additional_info.get("effects", "Unknown"),
+            "sources": sources,
+            "effects": effects,
             "last_updated": last_updated
         }
 
     def _handle_coordinator_update(self):
         """Force state update and fire custom event for Logbook."""
         self.async_write_ha_state()
-
         self.hass.bus.async_fire(
             "google_air_quality_state_changed",
             {
@@ -141,28 +139,3 @@ class GoogleAirQualityHealthSensor(CoordinatorEntity, SensorEntity):
             group: recommendations.get(group, "No recommendation available.")
             for group in RECOMMENDATION_GROUPS
         } | {"last_updated": last_updated}
-
-    def _handle_coordinator_update(self):
-        """Force state update and fire custom event for Logbook."""
-        self.async_write_ha_state()
-
-        self.hass.bus.async_fire(
-            "google_air_quality_state_changed",
-            {
-                "entity_id": self.entity_id,
-                "new_state": self.state,
-                "last_updated": datetime.now(timezone.utc).isoformat()
-            }
-        )
-
-    @property
-    def device_info(self):
-        """Return device information."""
-        return {
-            "identifiers": {(DOMAIN, "google_air_quality")},
-            "name": "Google Air Quality",
-            "manufacturer": "Google",
-            "model": "Air Quality API",
-            "entry_type": "service",
-            "configuration_url": "https://developers.google.com/maps/documentation/air-quality"
-        }
