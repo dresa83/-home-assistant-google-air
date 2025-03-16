@@ -43,7 +43,7 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
 
     @property
     def state(self):
-        return self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {}).get("value", "Unknown")
+        return self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {}).get("concentration", {}).get("value", "Unknown")
 
     @property
     def icon(self):
@@ -55,10 +55,10 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
         return {
             "display_name": pollutant.get("displayName", "Unknown"),
             "full_name": pollutant.get("fullName", "Unknown"),
-            "value": pollutant.get("value", "Unknown"),
-            "unit": pollutant.get("unit", "Unknown"),
-            "sources": pollutant.get("sources", "Unknown"),
-            "effects": pollutant.get("effects", "Unknown"),
+            "value": pollutant.get("concentration", {}).get("value", "Unknown"),
+            "unit": pollutant.get("concentration", {}).get("units", "Unknown"),
+            "sources": pollutant.get("additionalInfo", {}).get("sources", "Unknown"),
+            "effects": pollutant.get("additionalInfo", {}).get("effects", "Unknown"),
             "last_updated": datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         }
 
@@ -145,15 +145,4 @@ class GoogleAirQualityHealthSensor(CoordinatorEntity, SensorEntity):
             "pregnantWomen": recommendations.get("pregnantWomen", "No recommendation available."),
             "children": recommendations.get("children", "No recommendation available."),
             "last_updated": datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
-        }
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, "google_air_quality")},
-            "name": "Google Air Quality",
-            "manufacturer": "Google",
-            "model": "Air Quality API",
-            "entry_type": "service",
-            "configuration_url": "https://developers.google.com/maps/documentation/air-quality"
         }
