@@ -73,6 +73,7 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
     def extra_state_attributes(self):
         """Return additional attributes including last updated, display name, and full name."""
         pollutant = self.coordinator.data.get("pollutants", {}).get(self._sensor_type, {})
+        additional_info = pollutant.get("additionalInfo", {})
         value = pollutant.get("value", "Unknown")
         last_updated = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
@@ -81,8 +82,8 @@ class GoogleAirQualitySensor(CoordinatorEntity, SensorEntity):
             "full_name": POLLUTANT_DETAILS.get(self._sensor_type, {}).get("full_name", "Unknown"),
             "value": value,
             "unit": pollutant.get("unit", "Unknown"),
-            "sources": pollutant.get("sources", "Unknown"),
-            "effects": pollutant.get("effects", "Unknown"),
+            "sources": additional_info.get("sources", "Unknown"),
+            "effects": additional_info.get("effects", "Unknown"),
             "last_updated": last_updated
         }
 
